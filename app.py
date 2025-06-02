@@ -69,6 +69,7 @@ valid_doc_extensions_file_type = [
 def ask():
     data = request.json
     question = data.get('question')
+    target_language = data.get('target_language')
     filebook = data.get('filebook')
     model_app = data.get('model_app')
     selectedModel = model_app.get('selectedModel')
@@ -91,7 +92,7 @@ def ask():
     file_name = data.get('file_name')
 
     max_tokens = int(max_tokens)
-    word_limit = 670
+    word_limit = 870
 
     if not question:  # التأكد من وجود السؤال
         return jsonify({"error": "Please enter a message"}), 400
@@ -114,15 +115,15 @@ def ask():
             memory_status = "Normal - Memory is operating normally"
         else:
             memory_status = "Normal"
-    else:
-        # # التعامل مع الكتاب أو الملف المرفق
-        # file_path = os.path.join(os.path.dirname(__file__), '..', 'public', 'storage', 'books', filebook)
 
-        # try:
-        #     with open(file_path, 'r', encoding='utf-8') as file:
-        #         book_content = file.read()
-        # except Exception as e:
-        #     return jsonify({"error": f"حدث خطأ في فتح الملف: {e}"}), 500
+
+    elif chat_type == "translation":
+        relevant_text = ""
+        question_type = ""
+        memory_status = ""
+
+    else:
+
         file_path__ = f"storage/books/{filebook}"  # المسار النسبي للملف
         base_url = "https://hl-ai.kulshy.online"  # الرابط الأساسي للموقع
 
@@ -136,7 +137,7 @@ def ask():
 
     # استدعاء دالة generate_response مع النص المستخرج
     response = {
-        'answer': generate_response(relevant_text, question, question_type, selectedModel, selectedCompany, chat_id, chat_type, max_tokens, files=file_path ,file_type=file_type, file_name=file_name),
+        'answer': generate_response(relevant_text, question, question_type, selectedModel, selectedCompany, chat_id, chat_type, max_tokens, files=file_path ,file_type=file_type, file_name=file_name, target_language=target_language),
         'book_piece': relevant_text,
         'question': question,
         'memory_status': memory_status # إضافة حالة الذاكرة
@@ -236,7 +237,7 @@ def upload_file():
     return jsonify({'message': f'{file_type.capitalize()} uploaded successfully', 'file_path': file_path, 'file_name':new_filename, 'file_type': ext[1:]}), 200
 
 
-def generate_response(relevant_text, question, question_type, selectedModel, selectedCompany, chat_id, chat_type, max_tokens, files=None, file_type=None, file_name=None):
+def generate_response(relevant_text, question, question_type, selectedModel, selectedCompany, chat_id, chat_type, max_tokens, files=None, file_type=None, file_name=None,target_language=None):
     # prompt = f" انت خبير اكاديمي اقرأ الكتاب التالي وأجب فقط باستخدام المعلومات من الكتاب :\n\n{relevant_text}\n\nالسؤال: {question}"
     prompt = f"""
         انت خبير أكاديمي، اقرأ الكتاب التالي وأجب فقط باستخدام المعلومات من الكتاب.\n"
@@ -245,7 +246,8 @@ def generate_response(relevant_text, question, question_type, selectedModel, sel
         {relevant_text}\n\n"
         السؤال: {question}"
     """
-    if chat_type != "chat":
+
+    if chat_type == "chatbook":
         if question_type == "boolean":
             prompt += "\n\nأجب بـ 'صحيح' أو 'خطأ' بناءً على الكتاب واذكر سبب اختيار الاجابة من الكتاب ."
         elif question_type == "short_answer":
@@ -259,6 +261,17 @@ def generate_response(relevant_text, question, question_type, selectedModel, sel
 
         elif question_type == "ai":
             prompt = f"\n\n{relevant_text}\n\nالسؤال: {question}\n\nأنت خبير أكاديمي. استخدم قدراتك في الذكاء الاصطناعي للإجابة عن هذا السؤال بحرية، إذ قد لا تكون جميع المعلومات متوفرة في الكتاب."
+
+    elif chat_type == "translation":
+
+        prompt = f"""
+            أريد منك أن تعمل كمترجم احترافي. سأعطيك لغة الهدف ونصًا، ومهمتك أن تترجم النص بدقة مع الحفاظ على المعنى والسياق الطبيعي.
+
+            اللغة المستهدفة: {target_language}
+            النص المطلوب ترجمته:
+            {question}
+             ترجم النص فقط دون شرح أو تفسير أو تكرار.
+            """
 
     else:
         prompt = question
